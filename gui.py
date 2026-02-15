@@ -8,17 +8,30 @@ from geocode_coords import *
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-SCREEN_TITLE = "Map Search"
+SCREEN_TITLE = "requests"
 MAP_FILE = 'map.png'
 
 
 class Player(arcade.Sprite):
     def __init__(self):
         super().__init__()
-        self.texture = arcade.load_texture('map.png')
+        self.show_black_screen = False
+        try:
+            self.map_texture = arcade.load_texture('map.png')
+            self.black_texture = arcade.load_texture('black_screen.png')
+            self.texture = self.map_texture
+        except:
+            self.texture = None
 
     def update(self):
-        self.texture = arcade.load_texture('map.png')
+        """Обновляет текстуру карты"""
+        if self.show_black_screen:
+            # Показываем чёрный экран
+            self.texture = self.black_texture
+        else:
+            # Перезагружаем карту
+            self.map_texture = arcade.load_texture('map.png')
+            self.texture = self.map_texture
 
 
 class MyGUIWindow(arcade.Window):
@@ -32,18 +45,12 @@ class MyGUIWindow(arcade.Window):
         self.player.height = 350
         self.all_sprites = arcade.SpriteList()
         self.all_sprites.append(self.player)
-
-        # Переменные для карты
         self.ll = None
         self.span = None
-        self.marker_coords = None  # Координаты метки
-
-        # UIManager — сердце GUI
+        self.marker_coords = None
         self.manager = UIManager()
         self.manager.enable()
-
-        # Layout для организации — как полки в шкафу
-        self.anchor_layout = UIAnchorLayout(y=SCREEN_HEIGHT // 3)  # Центрирует виджеты
+        self.anchor_layout = UIAnchorLayout(y=SCREEN_HEIGHT // 3)
         self.box_layout = UIBoxLayout(vertical=False, space_between=10)
         self.setup_widgets()
         self.anchor_layout.add(self.box_layout)
@@ -70,8 +77,17 @@ class MyGUIWindow(arcade.Window):
         search_button.on_click = self.on_search_click
         self.box_layout.add(search_button)
 
+        # Кнопка "Сброс"
+        reset_button = UIFlatButton(
+            width=200, height=50,
+            color=arcade.color.RED,
+            text='Сброс'
+        )
+        reset_button.on_click = self.on_reset_click
+        self.box_layout.add(reset_button)
+
     def on_search_click(self, event):
-        """Обработка кнопки искать, находит объект и ставит метку"""
+        """Обработка кнопки поиска"""
         search_query = self.input_text.text.strip()
         if not search_query:
             return
@@ -82,7 +98,18 @@ class MyGUIWindow(arcade.Window):
             self.ll, self.span = result
             self.marker_coords = self.ll
             get_image(self.ll, self.span, self.marker_coords)
+
+            # Выключаем чёрный экран
+            self.player.show_black_screen = False
             self.player.update()
+
+    def on_reset_click(self, event):
+        """Обработка кнопки сброса"""
+        self.ll = None
+        self.span = None
+        self.marker_coords = None
+        self.player.show_black_screen = True
+        self.player.update()
 
     def on_draw(self):
         self.clear()
@@ -97,7 +124,7 @@ class MyGUIWindow(arcade.Window):
         if key == arcade.key.ENTER:
             self.on_search_click(None)
             return
-
+        self.player.show_black_screen = False
         if key == arcade.key.PAGEUP:
             s1, s2 = map(float, self.span.split(","))
             s1 *= 1.05
@@ -159,6 +186,7 @@ def get_image(ll, span, marker_coords=None):
 def setup_game(width=800, height=600, title="Background Color"):
     game = MyGUIWindow(width, height, title)
     return game
+
 
 def main():
     setup_game(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
