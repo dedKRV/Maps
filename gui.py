@@ -1,11 +1,11 @@
 import arcade
 import sys
 import requests
+import pygame
 from arcade.gui import UIManager, UIFlatButton, UIInputText, UILabel
 from arcade.gui.widgets.layout import UIAnchorLayout, UIBoxLayout
 from arcade.gui.widgets.toggle import UITextureToggle
-
-from geocode_coords import *
+from geocode_coords import geocode_coords, reverse_geocode
 
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 800
@@ -39,6 +39,7 @@ class MyGUIWindow(arcade.Window):
     def __init__(self, width, height, title):
         super().__init__(width, height, title)
         arcade.set_background_color(arcade.color.DUTCH_WHITE)
+        pygame.init()
         self.player = Player()
         self.player.center_x = SCREEN_WIDTH // 2 + 130
         self.player.center_y = SCREEN_HEIGHT // 2 + 130
@@ -327,6 +328,35 @@ class MyGUIWindow(arcade.Window):
         """Поиск с небольшой задержкой после нажатия клавиши"""
         arcade.unschedule(self.delayed_search)
         self.check_and_search()
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        pygame_event = pygame.event.Event(pygame.MOUSEBUTTONDOWN, {'pos': (x, self.height - y), 'button': button})
+        if button == 1:
+            self.map_click(x, y)
+
+    def map_click(self, x, y):
+        map_left = self.player.center_x - self.player.width / 2
+        map_right = self.player.center_x + self.player.width / 2
+        map_bottom = self.player.center_y - self.player.height / 2
+        map_top = self.player.center_y + self.player.height / 2
+        if (map_left <= x <= map_right and map_bottom <= y <= map_top):
+            if self.ll and self.span:
+                rel_x = (x - map_left) / self.player.width
+                rel_y = (y - map_bottom) / self.player.height
+                center_lon, center_lat = map(float, self.ll.split(','))
+                span_lon, span_lat = map(float, self.span.split(','))
+                click_lon = center_lon + (rel_x - 0.5) * span_lon
+                click_lat = center_lat + (rel_y - 0.5) * span_lat
+                result = reverse_geocode(click_lon, click_lat)
+                if result:
+                    coords, span_new, full_address, postal_code = result
+                    self.marker_coords = coords
+                    self.full_address = full_address
+                    self.postal_code = postal_code
+                    get_image(self.ll, self.span, self.marker_coords, self.map_theme)
+                    self.update_address_display()
+                    self.player.show_black_screen = False
+                    self.player.update()
 
 
 def get_image(ll, span, marker_coords=None, theme='light'):
