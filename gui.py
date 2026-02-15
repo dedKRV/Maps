@@ -1,21 +1,22 @@
 import arcade
 import sys
 import requests
-from arcade.gui import UIManager, UIFlatButton, UIInputText
+from arcade.gui import UIManager, UIFlatButton, UIInputText, UILabel
 from arcade.gui.widgets.layout import UIAnchorLayout, UIBoxLayout
+from arcade.gui.widgets.toggle import UITextureToggle
 
 from geocode_coords import *
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-SCREEN_TITLE = "requests"
+SCREEN_TITLE = "Map Search"
 MAP_FILE = 'map.png'
 
 
 class Player(arcade.Sprite):
     def __init__(self):
         super().__init__()
-        self.show_black_screen = False
+        self.show_black_screen = False  # Флаг для показа чёрного экрана
         try:
             self.map_texture = arcade.load_texture('map.png')
             self.black_texture = arcade.load_texture('black_screen.png')
@@ -48,16 +49,39 @@ class MyGUIWindow(arcade.Window):
         self.ll = None
         self.span = None
         self.marker_coords = None
+        self.full_address = None
+        self.postal_code = None
+        self.show_postal_code = False
+
+        # UIManager — сердце GUI
         self.manager = UIManager()
         self.manager.enable()
-        self.anchor_layout = UIAnchorLayout(y=SCREEN_HEIGHT // 3)
+        self.v_box = UIBoxLayout(vertical=True, space_between=5)
         self.box_layout = UIBoxLayout(vertical=False, space_between=10)
+        self.checkbox_layout = UIBoxLayout(vertical=False, space_between=10)
+        self.address_layout = UIBoxLayout(vertical=False, space_between=0)
         self.setup_widgets()
-        self.anchor_layout.add(self.box_layout)
+        self.v_box.add(self.box_layout)
+        self.v_box.add(self.checkbox_layout)
+        self.anchor_layout = UIAnchorLayout()
+        self.anchor_layout.add(
+            child=self.v_box,
+            anchor_x="center_x",
+            anchor_y="top",
+            align_y=-10
+        )
+
+        self.address_anchor = UIAnchorLayout()
+        self.address_anchor.add(
+            child=self.address_layout,
+            anchor_x="center_x",
+            anchor_y="bottom",
+            align_y=10
+        )
         self.manager.add(self.anchor_layout)
+        self.manager.add(self.address_anchor)
 
     def setup_widgets(self):
-        # Здесь добавим ВСЕ виджеты — по порядку!
         # Поле ввода для поиска
         self.input_text = UIInputText(
             x=0, y=0, width=200, height=50,
@@ -86,28 +110,69 @@ class MyGUIWindow(arcade.Window):
         reset_button.on_click = self.on_reset_click
         self.box_layout.add(reset_button)
 
+        # Чекбокс для почтового индекса
+        self.postal_checkbox = UIFlatButton(
+            width=200, height=40,
+            color=arcade.color.DARK_GRAY,
+            text='☐ Показать индекс'
+        )
+        self.postal_checkbox.on_click = self.on_toggle_postal_code
+        self.checkbox_layout.add(self.postal_checkbox)
+
+        self.address_label = UILabel(
+            text='',
+            width=600,
+            height=800,
+            font_size=14,
+            text_color=arcade.color.WHITE,
+            multiline=True
+        )
+        self.address_layout.add(self.address_label)
+
     def on_search_click(self, event):
-        """Обработка кнопки поиска"""
+        """Обработка кнопки Искать"""
         search_query = self.input_text.text.strip()
         if not search_query:
             return
-
-        # Получаем координаты объекта
         result = geocode_coords(search_query)
         if result:
-            self.ll, self.span = result
+            self.ll, self.span, self.full_address, self.postal_code = result
             self.marker_coords = self.ll
             get_image(self.ll, self.span, self.marker_coords)
 
+            self.update_address_display()
             # Выключаем чёрный экран
             self.player.show_black_screen = False
             self.player.update()
 
+    def on_toggle_postal_code(self, event):
+        """Обработка показа индекса"""
+        self.show_postal_code = not self.show_postal_code
+        if self.show_postal_code:
+            self.postal_checkbox.text = '☑ Показать индекс'
+        else:
+            self.postal_checkbox.text = '☐ Показать индекс'
+        self.update_address_display()
+
+    def update_address_display(self):
+        """Обновляет отображение адреса и индекса"""
+        if self.full_address:
+            if self.show_postal_code and self.postal_code:
+                self.address_label.text = f"{self.full_address}    {self.postal_code}"
+            else:
+                self.address_label.text = self.full_address
+        else:
+            self.address_label.text = ''
+
     def on_reset_click(self, event):
-        """Обработка кнопки сброса"""
+        """Обработка кнопки сброс"""
         self.ll = None
         self.span = None
         self.marker_coords = None
+        self.full_address = None
+        self.postal_code = None
+        self.postal_label.text = ''
+        self.address_label.text = ''
         self.player.show_black_screen = True
         self.player.update()
 
