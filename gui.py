@@ -52,8 +52,8 @@ class MyGUIWindow(arcade.Window):
         self.full_address = None
         self.postal_code = None
         self.show_postal_code = False
-        self.map_theme = 'light'  # Тема карты по умолчанию (light/light или dark)
-        self.last_search_query = ""  # Для отслеживания изменений
+        self.map_theme = 'light'
+        self.last_search_query = ""
 
         # UIManager — сердце GUI
         self.manager = UIManager()
@@ -63,7 +63,6 @@ class MyGUIWindow(arcade.Window):
         self.checkbox_layout = UIBoxLayout(vertical=False, space_between=10)
         self.address_layout = UIBoxLayout(vertical=False, space_between=0)
 
-        # Создаем контейнер для кнопок темы в правом нижнем углу
         self.theme_layout = UIBoxLayout(vertical=True, space_between=5)
 
         self.setup_widgets()
@@ -117,7 +116,6 @@ class MyGUIWindow(arcade.Window):
             font_size=14,
             text=''
         )
-        # Убираем все обработчики, будем использовать on_key_press
         self.box_layout.add(self.input_text)
 
         # Кнопка "Искать"
@@ -214,11 +212,9 @@ class MyGUIWindow(arcade.Window):
         if current_query != self.last_search_query:
             self.last_search_query = current_query
 
-            # Если запрос пустой - сбрасываем
             if not current_query:
                 self.on_reset_click(None)
             else:
-                # Выполняем поиск
                 result = geocode_coords(current_query)
                 if result:
                     self.ll, self.span, self.full_address, self.postal_code = result
@@ -226,7 +222,6 @@ class MyGUIWindow(arcade.Window):
                     get_image(self.ll, self.span, self.marker_coords, self.map_theme)
 
                     self.update_address_display()
-                    # Выключаем чёрный экран
                     self.player.show_black_screen = False
                     self.player.update()
 
@@ -263,8 +258,8 @@ class MyGUIWindow(arcade.Window):
         self.address_label.text = ''
         self.player.show_black_screen = True
         self.player.update()
-        self.input_text.text = ''  # Очищаем поле ввода
-        self.last_search_query = ''  # Сбрасываем последний запрос
+        self.input_text.text = ''
+        self.last_search_query = ''
 
     def on_draw(self):
         self.clear()
@@ -272,9 +267,6 @@ class MyGUIWindow(arcade.Window):
         self.manager.draw()
 
     def on_key_press(self, key, modifiers):
-        # Проверяем, активно ли поле ввода (имеет фокус)
-        # Если поле ввода активно, то обрабатываем только специальные клавиши навигации
-
         # Обработка специальных клавиш (стрелки, PageUp/PageDown) для навигации по карте
         if self.ll is not None and self.span is not None:
             if key == arcade.key.PAGEUP:
@@ -285,7 +277,7 @@ class MyGUIWindow(arcade.Window):
                 get_image(self.ll, self.span, self.marker_coords, self.map_theme)
                 self.player.update()
                 self.player.show_black_screen = False
-                return  # ВАЖНО: возвращаемся, чтобы не запускать delayed_search
+                return
             elif key == arcade.key.PAGEDOWN:
                 s1, s2 = map(float, self.span.split(","))
                 s1 *= 0.95
@@ -294,7 +286,7 @@ class MyGUIWindow(arcade.Window):
                 get_image(self.ll, self.span, self.marker_coords, self.map_theme)
                 self.player.update()
                 self.player.show_black_screen = False
-                return  # ВАЖНО: возвращаемся, чтобы не запускать delayed_search
+                return
             elif key == arcade.key.RIGHT:
                 s1, s2 = map(float, self.ll.split(","))
                 s1 += 5
@@ -328,11 +320,8 @@ class MyGUIWindow(arcade.Window):
                 self.player.show_black_screen = False
                 return
 
-        # Для всех остальных клавиш (включая буквы) - проверяем текст в поле ввода
-        # Отменяем предыдущий запланированный поиск, чтобы избежать множественных вызовов
         arcade.unschedule(self.delayed_search)
-        # Планируем новый поиск с задержкой
-        arcade.schedule_once(self.delayed_search, 0.3)  # Увеличил задержку до 0.3 секунды
+        arcade.schedule_once(self.delayed_search, 0.3)
 
     def delayed_search(self, delta_time):
         """Поиск с небольшой задержкой после нажатия клавиши"""
@@ -349,12 +338,10 @@ def get_image(ll, span, marker_coords=None, theme='light'):
         theme_param = '&theme=dark'
     else:
         theme_param = '&theme=light'
-
     ll_spn = f'll={ll}&spn={span}'
     pt_param = ''
     if marker_coords:
         pt_param = f'&pt={marker_coords},pm2rdm'
-
     # Добавляем параметр темы к запросу
     map_request = f"{server_address}{ll_spn}{pt_param}{theme_param}&apikey={api_key}"
 
